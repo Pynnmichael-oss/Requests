@@ -334,7 +334,7 @@
     <h2>Submit a request</h2>
     <p class="intro">Tell me what you're building. I'll follow up within a few days.</p>
 
-    <form id="inquiryForm" action="https://formspree.io/f/YOUR_FORM_ID" method="POST">
+    <form id="inquiryForm" action="https://formspree.io/f/mrpzkyqo" method="POST">
       <div class="row-2">
         <div class="field">
           <label for="name">Your name</label>
@@ -450,7 +450,7 @@
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    if(form.action.includes('YOUR_FORM_ID')){
+    if(form.action.includes('mrpzkyqo')){
       msg.textContent = 'Form endpoint not configured yet — see README.';
       msg.classList.add('error');
       return;
