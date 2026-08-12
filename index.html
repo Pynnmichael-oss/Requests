@@ -37,6 +37,60 @@
       radial-gradient(ellipse 900px 500px at 15% -10%, rgba(232,163,61,0.09), transparent 60%),
       radial-gradient(ellipse 700px 500px at 100% 0%, rgba(91,138,166,0.07), transparent 60%);
   }
+  /* ambient background layers — decorative, always behind content, never interactive */
+  .bg-haze, .bg-flap-grid{
+    position:fixed;
+    inset:0;
+    pointer-events:none;
+    overflow:hidden;
+  }
+  .bg-haze{
+    z-index:-2;
+  }
+  .bg-haze .shaft{
+    position:absolute;
+    top:-15%;
+    height:130%;
+    width:36vw;
+    min-width:280px;
+    filter:blur(70px);
+    will-change:transform;
+  }
+  .bg-haze .shaft-amber{
+    left:-12%;
+    background:radial-gradient(closest-side, rgba(232,163,61,0.14), transparent 70%);
+    animation:driftA 84s ease-in-out infinite alternate;
+  }
+  .bg-haze .shaft-blue{
+    left:38%;
+    background:radial-gradient(closest-side, rgba(91,138,166,0.12), transparent 70%);
+    animation:driftB 96s ease-in-out infinite alternate;
+  }
+  .bg-haze .shaft-amber2{
+    left:72%;
+    background:radial-gradient(closest-side, rgba(232,163,61,0.09), transparent 70%);
+    animation:driftC 112s ease-in-out infinite alternate;
+  }
+  @keyframes driftA{ from{transform:translateX(0);} to{transform:translateX(16vw);} }
+  @keyframes driftB{ from{transform:translateX(0);} to{transform:translateX(-14vw);} }
+  @keyframes driftC{ from{transform:translateX(0);} to{transform:translateX(12vw);} }
+
+  .bg-flap-grid{
+    z-index:-1;
+    display:grid;
+    color:var(--ink-dim);
+    opacity:0.05;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    line-height:1;
+    user-select:none;
+  }
+  .bg-flap-grid span{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+
   h1,h2,h3{font-family:'Space Grotesk',sans-serif;margin:0;letter-spacing:-0.01em;}
   .mono{font-family:'IBM Plex Mono',monospace;}
   a{color:var(--amber);text-decoration:none;}
@@ -268,10 +322,18 @@
   @media (prefers-reduced-motion: reduce){
     html{scroll-behavior:auto;}
     .eyebrow::before{animation:none;}
+    .bg-haze .shaft{animation:none;}
   }
 </style>
 </head>
 <body>
+
+<div class="bg-haze" aria-hidden="true">
+  <div class="shaft shaft-amber"></div>
+  <div class="shaft shaft-blue"></div>
+  <div class="shaft shaft-amber2"></div>
+</div>
+<div class="bg-flap-grid" id="flapGrid" aria-hidden="true"></div>
 
 <header>
   <div class="brand">MICHAEL PYNN <span>/ builds</span></div>
@@ -520,6 +582,100 @@
       msg.classList.add('error');
       msg.textContent = 'Something went wrong — try again, or email me directly.';
     }
+  });
+
+  // Ambient background layer: idle split-flap character grid.
+  // Decorative only — fixed, negative z-index, pointer-events:none, capped cell count.
+  const FLAP_CHARSET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  const flapGrid = document.getElementById('flapGrid');
+  const MAX_FLAP_CELLS = 480;
+  let flapCells = [];
+  const flapActiveIntervals = new Set();
+  let flapScheduleTimer = null;
+  let flapResizeTimer = null;
+
+  function randomFlapChar(){
+    return FLAP_CHARSET[Math.floor(Math.random() * FLAP_CHARSET.length)];
+  }
+
+  function stopFlapFlicker(){
+    if(flapScheduleTimer){ clearTimeout(flapScheduleTimer); flapScheduleTimer = null; }
+    flapActiveIntervals.forEach(iv => clearInterval(iv));
+    flapActiveIntervals.clear();
+  }
+
+  function flickerFlapCell(el){
+    const cycles = 4 + Math.floor(Math.random() * 3); // 4-6 flutters
+    let frame = 0;
+    const iv = setInterval(() => {
+      frame++;
+      el.textContent = randomFlapChar();
+      if(frame >= cycles){
+        clearInterval(iv);
+        flapActiveIntervals.delete(iv);
+      }
+    }, 45); // same tick rate as the manifest board's scrambleReveal()
+    flapActiveIntervals.add(iv);
+  }
+
+  function scheduleFlapFlicker(){
+    const delay = 2000 + Math.random() * 2000; // every 2-4s
+    flapScheduleTimer = setTimeout(() => {
+      if(!document.hidden && flapCells.length){
+        const count = 2 + Math.floor(Math.random() * 4); // 2-5 cells
+        for(let i = 0; i < count; i++){
+          flickerFlapCell(flapCells[Math.floor(Math.random() * flapCells.length)]);
+        }
+      }
+      scheduleFlapFlicker();
+    }, delay);
+  }
+
+  function startFlapFlicker(){
+    if(reduceMotion || flapScheduleTimer || document.hidden) return;
+    scheduleFlapFlicker();
+  }
+
+  function buildFlapGrid(){
+    if(!flapGrid) return;
+    stopFlapFlicker();
+    flapGrid.innerHTML = '';
+    flapCells = [];
+
+    const cellW = 16, cellH = 20;
+    let cols = Math.max(1, Math.ceil(window.innerWidth / cellW));
+    let rows = Math.max(1, Math.ceil(window.innerHeight / cellH));
+    if(cols * rows > MAX_FLAP_CELLS){
+      const scale = Math.sqrt((cols * rows) / MAX_FLAP_CELLS);
+      cols = Math.max(1, Math.round(cols / scale));
+      rows = Math.max(1, Math.round(rows / scale));
+    }
+
+    flapGrid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+    flapGrid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+
+    const frag = document.createDocumentFragment();
+    for(let i = 0; i < cols * rows; i++){
+      const span = document.createElement('span');
+      span.textContent = randomFlapChar();
+      frag.appendChild(span);
+      flapCells.push(span);
+    }
+    flapGrid.appendChild(frag);
+
+    startFlapFlicker();
+  }
+
+  buildFlapGrid();
+
+  window.addEventListener('resize', () => {
+    clearTimeout(flapResizeTimer);
+    flapResizeTimer = setTimeout(buildFlapGrid, 250);
+  });
+
+  document.addEventListener('visibilitychange', () => {
+    if(document.hidden){ stopFlapFlicker(); }
+    else { startFlapFlicker(); }
   });
 </script>
 
