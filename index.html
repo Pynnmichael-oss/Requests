@@ -295,11 +295,11 @@
 <section class="board-section">
   <div class="board" id="board">
     <div class="board-title"><span>BUILD MANIFEST</span><span>STATUS</span></div>
-    <div class="flap-row"><span class="flap-name mono" data-final="FOURWINDS"></span><span class="flap-status is-live mono" data-final="LIVE"></span></div>
-    <div class="flap-row"><span class="flap-name mono" data-final="SHORTSLEEVE TRAVEL"></span><span class="flap-status is-live mono" data-final="LIVE"></span></div>
-    <div class="flap-row"><span class="flap-name mono" data-final="SUMMER NICOLE FILMS"></span><span class="flap-status is-live mono" data-final="LIVE"></span></div>
-    <div class="flap-row"><span class="flap-name mono" data-final="ROBERTS FUEL SERVICES"></span><span class="flap-status is-live mono" data-final="LIVE"></span></div>
-    <div class="flap-row"><span class="flap-name mono" data-final="YOUR SITE"></span><span class="flap-status is-yours mono" data-final="QUEUED"></span></div>
+    <div class="flap-row rotate-row"><span class="flap-name mono" data-final="FOURWINDS"></span><span class="flap-status is-live mono" data-final="LIVE"></span></div>
+    <div class="flap-row rotate-row"><span class="flap-name mono" data-final="SHORTSLEEVE TRAVEL"></span><span class="flap-status is-live mono" data-final="LIVE"></span></div>
+    <div class="flap-row rotate-row"><span class="flap-name mono" data-final="SUMMER NICOLE FILMS"></span><span class="flap-status is-live mono" data-final="LIVE"></span></div>
+    <div class="flap-row rotate-row"><span class="flap-name mono" data-final="ROBERTS FUEL SERVICES"></span><span class="flap-status is-live mono" data-final="LIVE"></span></div>
+    <div class="flap-row pinned-row"><span class="flap-name mono" data-final="YOUR SITE"></span><span class="flap-status is-yours mono" data-final="QUEUED"></span></div>
   </div>
 </section>
 
@@ -394,6 +394,17 @@
 </footer>
 
 <script>
+  // Projects that cycle through the build manifest board — add one per line.
+  const PROJECT_POOL = [
+    "FOURWINDS",
+    "SHORTSLEEVE TRAVEL",
+    "SUMMER NICOLE FILMS",
+    "ROBERTS FUEL SERVICES",
+    "ALL HANDS DETAILING",
+    "TOUCHGRASS"
+  ];
+  const ROTATE_INTERVAL_MS = 10000;
+
   // Split-flap reveal effect for the build manifest board
   const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789   ";
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -425,18 +436,54 @@
   }
 
   const board = document.getElementById('board');
+  const rotateRows = Array.from(board.querySelectorAll('.rotate-row'));
+  const pinnedRow = board.querySelector('.pinned-row');
+  let poolIndex = 0;
   let played = false;
+  let rotateTimer = null;
+
+  function currentSlice(){
+    return rotateRows.map((_, i) => PROJECT_POOL[(poolIndex + i) % PROJECT_POOL.length]);
+  }
+
+  function revealRotatingRows(delayOffset){
+    const names = currentSlice();
+    rotateRows.forEach((row, i) => {
+      const name = row.querySelector('.flap-name');
+      const status = row.querySelector('.flap-status');
+      name.dataset.final = names[i];
+      status.dataset.final = 'LIVE';
+      scrambleReveal(name, names[i], delayOffset + i*160);
+      scrambleReveal(status, 'LIVE', delayOffset + i*160 + 120);
+    });
+  }
+
   function playBoard(){
     if(played) return;
     played = true;
-    const rows = board.querySelectorAll('.flap-row');
-    rows.forEach((row, i) => {
-      const name = row.querySelector('.flap-name');
-      const status = row.querySelector('.flap-status');
-      scrambleReveal(name, name.dataset.final, i*160);
-      scrambleReveal(status, status.dataset.final, i*160 + 120);
-    });
+    revealRotatingRows(0);
+    const pinnedName = pinnedRow.querySelector('.flap-name');
+    const pinnedStatus = pinnedRow.querySelector('.flap-status');
+    scrambleReveal(pinnedName, pinnedName.dataset.final, rotateRows.length*160);
+    scrambleReveal(pinnedStatus, pinnedStatus.dataset.final, rotateRows.length*160 + 120);
+    startRotation();
   }
+
+  function startRotation(){
+    if(rotateTimer || !played || document.hidden) return;
+    rotateTimer = setInterval(() => {
+      poolIndex = (poolIndex + 1) % PROJECT_POOL.length;
+      revealRotatingRows(0);
+    }, ROTATE_INTERVAL_MS);
+  }
+
+  function stopRotation(){
+    if(rotateTimer){ clearInterval(rotateTimer); rotateTimer = null; }
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if(document.hidden){ stopRotation(); } else { startRotation(); }
+  });
 
   const observer = new IntersectionObserver((entries) => {
     entries.forEach(entry => { if(entry.isIntersecting) playBoard(); });
