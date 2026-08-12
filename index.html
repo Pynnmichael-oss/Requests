@@ -37,15 +37,17 @@
       radial-gradient(ellipse 900px 500px at 15% -10%, rgba(232,163,61,0.09), transparent 60%),
       radial-gradient(ellipse 700px 500px at 100% 0%, rgba(91,138,166,0.07), transparent 60%);
   }
-  /* ambient background layers — decorative, always behind content, never interactive */
+  /* ambient background layers — decorative, always behind content, never interactive.
+     z-index:0 (not negative): body's own background paints before positioned
+     descendants in the stacking order, so a negative z-index here would end up
+     UNDER that opaque background and never be visible. Real content below is
+     explicitly promoted to z-index:1 so it still stacks above these layers. */
   .bg-haze, .bg-flap-grid{
     position:fixed;
     inset:0;
     pointer-events:none;
     overflow:hidden;
-  }
-  .bg-haze{
-    z-index:-2;
+    z-index:0;
   }
   .bg-haze .shaft{
     position:absolute;
@@ -76,10 +78,9 @@
   @keyframes driftC{ from{transform:translateX(0);} to{transform:translateX(12vw);} }
 
   .bg-flap-grid{
-    z-index:-1;
     display:grid;
     color:var(--ink-dim);
-    opacity:0.05;
+    opacity:0.09;
     font-family:'IBM Plex Mono',monospace;
     font-size:12px;
     line-height:1;
@@ -89,6 +90,13 @@
     display:flex;
     align-items:center;
     justify-content:center;
+  }
+
+  /* Every direct content child of body sits in its own stacking context above
+     the ambient background layers (which are z-index:0, DOM-order stacked). */
+  body > *:not(.bg-haze):not(.bg-flap-grid){
+    position:relative;
+    z-index:1;
   }
 
   h1,h2,h3{font-family:'Space Grotesk',sans-serif;margin:0;letter-spacing:-0.01em;}
